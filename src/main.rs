@@ -1,25 +1,27 @@
+mod api;
+
 use axum::{
     routing::{get},
     Router,
-    http::StatusCode,
-    Json,
 };
-use chrono::{Utc};
-use serde::Serialize;
 use dotenv::dotenv;
 use std::env;
-use utoipa::{OpenApi, ToSchema};
+use std::io::Error;
+use std::net::{SocketAddr};
+use tokio::net::TcpListener;
+use utoipa::{OpenApi};
 use utoipa_swagger_ui::SwaggerUi;
-
+use crate::api::health::health_check;
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), Error> {
     #[derive(OpenApi)]
     #[openapi(
-    paths(health_check),
-    components(schemas(Health)),
-    tags((name = "Rust Shortener", description = "Rust URL Shortener")
-    ))]
+    servers((url = "http://localhost:3000", description = "Local server")),
+    paths(api::health::health_check),
+    components(schemas(api::health::Health)),
+    info(title = "Rust Shortener", description = "Rust URL Shortener")
+    )]
     struct ApiDoc;
 
     dotenv().ok();
@@ -30,31 +32,10 @@ async fn main() {
         .merge(SwaggerUi::new("/swag").url("/api-docs.json", ApiDoc::openapi()))
         .route("/", get(health_check));
 
-    let addr = format!("127.0.0.1:{port}");
-
-    let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
-    println!("Server running on port http://{}/swag", addr);
-    axum::serve(listener, app.into_make_service()).await.unwrap();
+    let address = SocketAddr::from(([0, 0, 0, 0], port.parse::<u16>().unwrap()));
+    let listener = TcpListener::bind(&address).await?;
+    println!("Listening on http://{}", address);
+    axum::serve(listener, app.into_make_service()).await
 }
 
 
-#[derive(Serialize, ToSchema)]
-struct Health {
-    message: String,
-    timestamp: String,
-}
-
-#[utoipa::path(
-get,
-path = "/",
-responses(
-(status = 200, description = "Health check", body = Health),
-))]
-async fn health_check() -> (StatusCode, Json<Health>) {
-    let health = Health {
-        message: String::from("Server is running! 🦀"),
-        timestamp: Utc::now().to_string(),
-    };
-
-    (StatusCode::OK, Json(health))
-}
