@@ -12,7 +12,7 @@ use crate::api::generic_response::GenericResponse;
 use crate::AppState;
 
 
-#[derive(Serialize, Deserialize, ToSchema)]
+#[derive(Serialize, Deserialize, ToSchema, Debug)]
 pub struct ShortUrl {
     short_url: String,
 }
@@ -74,5 +74,76 @@ pub async fn redirect_to(State(state): State<AppState>, Path(id): Path<String>) 
         Err(_) => Err((StatusCode::NOT_FOUND, Json(GenericResponse {
             message: format!("URL {} not found", id),
         })))
+    }
+}
+
+// test
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::{
+        http::{StatusCode},
+        Router,
+        routing::{get, post, delete},
+    };
+    use axum_test::TestServer;
+    use serde_json::json;
+
+
+    async fn create_server() -> TestServer {
+        let state = AppState::new("redis://localhost:6379".to_string()).await;
+
+        let app = Router::new()
+            .route("/url", post(post_url))
+            .route("/url/:id", delete(delete_url))
+            .route("/:id", get(redirect_to))
+            .with_state(state);
+
+        TestServer::new(app).unwrap()
+    }
+
+    #[tokio::test]
+    async fn test_post_url() {
+        let server = create_server().await;
+
+        let res = server.post("/url").json(
+            &json!({
+                "url": "https://www.rust-lang.org/"
+            })).await;
+
+        let body: ShortUrl = res.json();
+
+        assert_eq!(res.status_code(), StatusCode::OK);
+        assert_eq!(body.short_url.len(), 8);
+    }
+
+    #[tokio::test]
+    async fn test_delete_url() {
+        let server = create_server().await;
+
+        let res = server.post("/url").json(
+            &json!({
+                "url": "https://www.rust-lang.org/"
+            })).await;
+
+        let body: ShortUrl = res.json();
+
+        let res = server.delete(&format!("/url/{}", body.short_url)).await;
+
+        let status = res.status_code();
+        assert_eq!(status, StatusCode::OK);
+
+        let res_body: GenericResponse = res.json();
+        assert_eq!(res_body.message, format!("URL {} deleted", body.short_url));
+    }
+
+    #[tokio::test]
+    async fn test_redirect_to() {
+        let server = create_server().await;
+
+        let res = server.get("/test").await;
+
+        assert_eq!(res.status_code(), StatusCode::NOT_FOUND);
     }
 }

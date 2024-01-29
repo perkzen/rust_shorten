@@ -1,4 +1,5 @@
 mod api;
+mod app_state;
 
 use axum::{routing::{get, post}, Router, http};
 use crate::api::{
@@ -9,22 +10,14 @@ use dotenv::dotenv;
 use std::env;
 use std::io::Error;
 use std::net::{SocketAddr};
-use std::sync::{Arc};
 use axum::http::Method;
 use axum::routing::delete;
-use redis::aio::Connection;
-use redis::Client;
 use tokio::net::TcpListener;
-use tokio::sync::Mutex;
 use utoipa::{OpenApi};
 use utoipa_rapidoc::RapiDoc;
 use tower_http::cors::{Any, CorsLayer};
+use crate::app_state::AppState;
 
-
-#[derive(Clone)]
-pub struct AppState {
-    redis: Arc<Mutex<Connection>>,
-}
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
@@ -42,11 +35,7 @@ async fn main() -> Result<(), Error> {
 
     let redis_url = env::var("REDIS_URL").expect("REDIS_URL is not set in .env file");
 
-    let redis_client = Client::open(redis_url).expect("Failed to connect to Redis");
-
-    let state = AppState {
-        redis: Arc::new(Mutex::new(redis_client.get_async_connection().await.unwrap())),
-    };
+    let state = AppState::new(redis_url).await;
 
     let cors = CorsLayer::new()
         .allow_methods([Method::GET, Method::POST, Method::DELETE])
