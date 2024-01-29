@@ -3,6 +3,7 @@ use axum::{
     Json,
 };
 use axum::extract::{Path, State};
+use axum::response::Redirect;
 use redis::AsyncCommands;
 use serde::{Deserialize, Serialize};
 use utoipa::{ToSchema};
@@ -42,7 +43,7 @@ pub async fn post_url(State(state): State<AppState>, payload: Json<LongUrl>) -> 
 
 #[utoipa::path(delete, path = "/url/{id}", tag = "Url",
 params(
-("id" = i32, Path, description = "Short URL ID"),
+("id" = String, Path, description = "Short URL ID"),
 ),
 responses(
 (status = 200, description = "Delete URL"),
@@ -55,4 +56,23 @@ pub async fn delete_url(State(state): State<AppState>, Path(id): Path<String>) -
     (StatusCode::OK, Json(GenericResponse {
         message: format!("URL {} deleted", id),
     }))
+}
+
+#[utoipa::path(get, path = "/{id}", tag = "Redirect",
+params(
+("id" = String, Path, description = "Short URL ID"),
+),
+responses(
+(status = 404, description = "URL not found"),
+))]
+pub async fn redirect_to(State(state): State<AppState>, Path(id): Path<String>) -> Result<Redirect, (StatusCode, Json<GenericResponse>)> {
+    let mut redis = state.redis.lock().await;
+    let url: Result<String, _> = redis.get(&id).await;
+
+    match url {
+        Ok(url) => Ok(Redirect::temporary(&url)),
+        Err(_) => Err((StatusCode::NOT_FOUND, Json(GenericResponse {
+            message: format!("URL {} not found", id),
+        })))
+    }
 }

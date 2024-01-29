@@ -1,15 +1,16 @@
 mod api;
 
-use axum::{routing::{get, post}, Router};
+use axum::{routing::{get, post}, Router, http};
 use crate::api::{
     health::health_check,
-    url::{post_url, delete_url},
+    url::{post_url, delete_url, redirect_to},
 };
 use dotenv::dotenv;
 use std::env;
 use std::io::Error;
 use std::net::{SocketAddr};
 use std::sync::{Arc};
+use axum::http::Method;
 use axum::routing::delete;
 use redis::aio::Connection;
 use redis::Client;
@@ -17,6 +18,7 @@ use tokio::net::TcpListener;
 use tokio::sync::Mutex;
 use utoipa::{OpenApi};
 use utoipa_rapidoc::RapiDoc;
+use tower_http::cors::{Any, CorsLayer};
 
 
 #[derive(Clone)]
@@ -28,8 +30,8 @@ pub struct AppState {
 async fn main() -> Result<(), Error> {
     #[derive(OpenApi)]
     #[openapi(
-    paths(api::health::health_check, api::url::post_url, api::url::delete_url),
-    components(schemas(api::health::Health, api::url::ShortUrl, api::url::LongUrl)),
+    paths(api::health::health_check, api::url::post_url, api::url::delete_url, api::url::redirect_to),
+    components(schemas(api::health::Health, api::url::ShortUrl, api::url::LongUrl, api::generic_response::GenericResponse)),
     info(title = "Rust Shortener", description = "Rust URL Shortener")
     )]
     struct ApiDoc;
@@ -46,11 +48,19 @@ async fn main() -> Result<(), Error> {
         redis: Arc::new(Mutex::new(redis_client.get_async_connection().await.unwrap())),
     };
 
+    let cors = CorsLayer::new()
+        .allow_methods([Method::GET, Method::POST, Method::DELETE])
+        .allow_origin(Any)
+        .allow_headers([http::header::AUTHORIZATION, http::header::ACCEPT]);
+
+
     let app = Router::new()
         .merge(RapiDoc::with_openapi("/api-docs/openapi.json", ApiDoc::openapi()).path("/docs"))
         .route("/", get(health_check))
+        .route("/:id", get(redirect_to))
         .route("/url", post(post_url))
         .route("/url/:id", delete(delete_url))
+        .layer(cors)
         .with_state(state);
 
 
