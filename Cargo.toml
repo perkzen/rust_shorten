@@ -11,5 +11,7 @@ tokio = { version = "1.35.1", features = ["full"] }
 serde = { version = "1.0.196", features = ["derive"] }
 chrono = "0.4.33"
 dotenv = "0.15.0"
-utoipa = { version = "4.2.0", features = ["axum_extras"]}
+utoipa = { version = "4.2.0", features = ["axum_extras"] }
 utoipa-rapidoc = { version = "3.0.0", features = ["axum"] }
+redis = { version = "0.24.0", features = ["cluster-async", "tokio-native-tls-comp", "tokio-comp"] }
+uuid = { version = "1.7.0", features = ["serde", "v4"] }

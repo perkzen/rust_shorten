@@ -13,3 +13,7 @@ services:
             - target
     environment:
       - PORT=3000
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
