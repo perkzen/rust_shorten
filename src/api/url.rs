@@ -2,20 +2,21 @@ use axum::{
     http::StatusCode,
     Json,
 };
-use axum::extract::State;
+use axum::extract::{Path, State};
 use redis::AsyncCommands;
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
+use utoipa::{ToSchema};
 use uuid::Uuid;
+use crate::api::generic_response::GenericResponse;
 use crate::AppState;
 
 
-#[derive(Serialize, ToSchema)]
+#[derive(Serialize, Deserialize, ToSchema)]
 pub struct ShortUrl {
     short_url: String,
 }
 
-#[derive(Deserialize, ToSchema)]
+#[derive(Serialize, Deserialize, ToSchema)]
 pub struct LongUrl {
     url: String,
 }
@@ -28,8 +29,6 @@ pub async fn post_url(State(state): State<AppState>, payload: Json<LongUrl>) -> 
     let id = Uuid::new_v4().to_string();
     let short_id = id.split('-').next().unwrap();
 
-    let _long_url: String = payload.url.clone();
-
     let mut redis = state.redis.lock().await;
     let _: () = redis.set(short_id, payload.url.clone()).await.unwrap();
 
@@ -38,4 +37,22 @@ pub async fn post_url(State(state): State<AppState>, payload: Json<LongUrl>) -> 
     };
 
     (StatusCode::OK, Json(short_url))
+}
+
+
+#[utoipa::path(delete, path = "/url/{id}", tag = "Url",
+params(
+("id" = i32, Path, description = "Short URL ID"),
+),
+responses(
+(status = 200, description = "Delete URL"),
+(status = 404, description = "URL not found"),
+))]
+pub async fn delete_url(State(state): State<AppState>, Path(id): Path<String>) -> (StatusCode, Json<GenericResponse>) {
+    let mut redis = state.redis.lock().await;
+    let _: () = redis.del(&id).await.unwrap();
+
+    (StatusCode::OK, Json(GenericResponse {
+        message: format!("URL {} deleted", id),
+    }))
 }

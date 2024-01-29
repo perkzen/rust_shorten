@@ -1,22 +1,23 @@
 mod api;
 
-use axum::{routing::{get}, Router};
+use axum::{routing::{get, post}, Router};
 use crate::api::{
     health::health_check,
-    url::post_url,
+    url::{post_url, delete_url},
 };
 use dotenv::dotenv;
 use std::env;
 use std::io::Error;
 use std::net::{SocketAddr};
 use std::sync::{Arc};
-use axum::routing::post;
+use axum::routing::delete;
 use redis::aio::Connection;
 use redis::Client;
 use tokio::net::TcpListener;
 use tokio::sync::Mutex;
 use utoipa::{OpenApi};
 use utoipa_rapidoc::RapiDoc;
+
 
 #[derive(Clone)]
 pub struct AppState {
@@ -27,7 +28,7 @@ pub struct AppState {
 async fn main() -> Result<(), Error> {
     #[derive(OpenApi)]
     #[openapi(
-    paths(api::health::health_check, api::url::post_url),
+    paths(api::health::health_check, api::url::post_url, api::url::delete_url),
     components(schemas(api::health::Health, api::url::ShortUrl, api::url::LongUrl)),
     info(title = "Rust Shortener", description = "Rust URL Shortener")
     )]
@@ -49,6 +50,7 @@ async fn main() -> Result<(), Error> {
         .merge(RapiDoc::with_openapi("/api-docs/openapi.json", ApiDoc::openapi()).path("/docs"))
         .route("/", get(health_check))
         .route("/url", post(post_url))
+        .route("/url/:id", delete(delete_url))
         .with_state(state);
 
 
