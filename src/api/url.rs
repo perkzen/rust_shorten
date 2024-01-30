@@ -61,6 +61,7 @@ params(
 ("id" = String, Path, description = "Short URL ID"),
 ),
 responses(
+(status = 302, description = "Redirect to URL"),
 (status = 404, description = "URL not found", body = api::responses::Response),
 ))]
 pub async fn redirect_to(State(state): State<AppState>, Path(id): Path<String>) -> Result<Redirect, (StatusCode, Json<Response>)> {
