@@ -1,5 +1,5 @@
 pub mod health;
 pub mod url;
-pub mod generic_response;
+pub mod error_response;
 
 
