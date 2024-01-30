@@ -31,7 +31,7 @@ pub async fn add_url(State(state): State<AppState>, payload: Json<LongUrl>) -> (
     let short_id = id.split('-').next().unwrap();
 
     let mut redis = state.redis.lock().await;
-    let _: () = redis.set(short_id, payload.url.clone()).await.unwrap();
+    let _: () = redis.set(&short_id, &payload.url).await.unwrap();
 
     let short_url = ShortUrl {
         short_url: String::from(short_id),
