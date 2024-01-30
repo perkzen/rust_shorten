@@ -47,7 +47,7 @@ params(
 ),
 responses(
 (status = 200, description = "Delete URL"),
-(status = 404, description = "URL not found"),
+(status = 404, description = "URL not found", body = api::error_response::ErrorResponse),
 ))]
 pub async fn delete_url(State(state): State<AppState>, Path(id): Path<String>) -> (StatusCode, Json<ErrorResponse>) {
     let mut redis = state.redis.lock().await;
