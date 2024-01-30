@@ -8,7 +8,7 @@ use redis::AsyncCommands;
 use serde::{Deserialize, Serialize};
 use utoipa::{ToSchema};
 use uuid::Uuid;
-use crate::api::error_response::ErrorResponse;
+use crate::api::responses::{Response};
 use crate::AppState;
 
 
@@ -47,15 +47,13 @@ params(
 ),
 responses(
 (status = 200, description = "Delete URL"),
-(status = 404, description = "URL not found", body = api::error_response::ErrorResponse),
+(status = 404, description = "URL not found", body = api::responses::Response),
 ))]
-pub async fn delete_url(State(state): State<AppState>, Path(id): Path<String>) -> (StatusCode, Json<ErrorResponse>) {
+pub async fn delete_url(State(state): State<AppState>, Path(id): Path<String>) -> (StatusCode, Json<Response>) {
     let mut redis = state.redis.lock().await;
     let _: () = redis.del(&id).await.unwrap();
 
-    (StatusCode::OK, Json(ErrorResponse {
-        message: format!("URL {} deleted", id),
-    }))
+    (StatusCode::OK, Json(Response::success(format!("URL {} deleted", id))))
 }
 
 #[utoipa::path(get, path = "/{id}", tag = "Redirect",
@@ -63,17 +61,15 @@ params(
 ("id" = String, Path, description = "Short URL ID"),
 ),
 responses(
-(status = 404, description = "URL not found", body = api::error_response::ErrorResponse),
+(status = 404, description = "URL not found", body = api::responses::Response),
 ))]
-pub async fn redirect_to(State(state): State<AppState>, Path(id): Path<String>) -> Result<Redirect, (StatusCode, Json<ErrorResponse>)> {
+pub async fn redirect_to(State(state): State<AppState>, Path(id): Path<String>) -> Result<Redirect, (StatusCode, Json<Response>)> {
     let mut redis = state.redis.lock().await;
     let url: Result<String, _> = redis.get(&id).await;
 
     match url {
         Ok(url) => Ok(Redirect::temporary(&url)),
-        Err(_) => Err((StatusCode::NOT_FOUND, Json(ErrorResponse {
-            message: format!("URL {} not found", id),
-        })))
+        Err(_) => Err((StatusCode::NOT_FOUND, Json(Response::error(format!("URL {} not found", id)))))
     }
 }
 
@@ -133,7 +129,7 @@ mod tests {
         let status = res.status_code();
         assert_eq!(status, StatusCode::OK);
 
-        let res_body: ErrorResponse = res.json();
+        let res_body: Response = res.json();
         assert_eq!(res_body.message, format!("URL {} deleted", body.short_url));
     }
 
