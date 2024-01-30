@@ -23,7 +23,7 @@ use crate::app_state::AppState;
 async fn main() -> Result<(), Error> {
     #[derive(OpenApi)]
     #[openapi(
-    paths(api::health::health_check, api::url::post_url, api::url::delete_url, api::url::redirect_to),
+    paths(api::health::health_check, api::url::add_url, api::url::delete_url, api::url::redirect_to),
     components(schemas(api::health::Health, api::url::ShortUrl, api::url::LongUrl, api::generic_response::GenericResponse)),
     info(title = "Rust Shortener", description = "Rust URL Shortener")
     )]
