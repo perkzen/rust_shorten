@@ -4,7 +4,7 @@ mod app_state;
 use axum::{routing::{get, post}, Router, http};
 use crate::api::{
     health::health_check,
-    url::{post_url, delete_url, redirect_to},
+    url::{add_url, delete_url, redirect_to},
 };
 use dotenv::dotenv;
 use std::env;
@@ -47,7 +47,7 @@ async fn main() -> Result<(), Error> {
         .merge(RapiDoc::with_openapi("/api-docs/openapi.json", ApiDoc::openapi()).path("/docs"))
         .route("/", get(health_check))
         .route("/:id", get(redirect_to))
-        .route("/url", post(post_url))
+        .route("/url", post(add_url))
         .route("/url/:id", delete(delete_url))
         .layer(cors)
         .with_state(state);

@@ -26,7 +26,7 @@ pub struct LongUrl {
 responses(
 (status = 200, description = "Shorten URL", body = ShortUrl),
 ))]
-pub async fn post_url(State(state): State<AppState>, payload: Json<LongUrl>) -> (StatusCode, Json<ShortUrl>) {
+pub async fn add_url(State(state): State<AppState>, payload: Json<LongUrl>) -> (StatusCode, Json<ShortUrl>) {
     let id = Uuid::new_v4().to_string();
     let short_id = id.split('-').next().unwrap();
 
@@ -77,7 +77,6 @@ pub async fn redirect_to(State(state): State<AppState>, Path(id): Path<String>) 
     }
 }
 
-// test
 
 #[cfg(test)]
 mod tests {
@@ -95,7 +94,7 @@ mod tests {
         let state = AppState::new("redis://localhost:6379".to_string()).await;
 
         let app = Router::new()
-            .route("/url", post(post_url))
+            .route("/url", post(add_url))
             .route("/url/:id", delete(delete_url))
             .route("/:id", get(redirect_to))
             .with_state(state);
