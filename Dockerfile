@@ -1,29 +1,44 @@
-# Stage 1: Build Stage
-FROM rust:1.75-alpine as builder
+# Stage 1: Build the Rust application
+FROM rust:1.72 as builder
 
-# Install musl-dev to provide C runtime files
-RUN apk add --no-cache musl-dev
+# Create a new empty shell project
+WORKDIR /usr/src/app
+RUN cargo new --bin rust_shorten
+WORKDIR /usr/src/app/rust_shorten
 
-WORKDIR /app
-
-# Copy only the necessary files for building
+# Copy manifests
 COPY Cargo.toml Cargo.lock ./
+
+# Cache dependencies
+RUN cargo build --release
+RUN rm src/*.rs
+
+# Copy source code
 COPY src ./src
 
-# Build the application
+# Build for release
+RUN rm ./target/release/deps/rust_shorten*
 RUN cargo build --release
 
-# Stage 2: Runtime Stage
-FROM alpine:latest as runtime
+# Stage 2: Create a minimal runtime image
+FROM debian:bookworm-slim
 
-WORKDIR /app
+# Install OpenSSL and ca-certificates
+RUN apt-get update && \
+    apt-get install -y openssl ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
 
-# Copy only the built artifacts from the builder stage
-COPY --from=builder /app/target/release/rust_shorten /app/rust_shorten
+# Create a non-root user
+RUN useradd -ms /bin/bash myuser
 
-ENV PORT=3000
+# Copy the build artifact from the builder stage
+COPY --from=builder /usr/src/app/rust_shorten/target/release/rust_shorten /usr/local/bin/
 
-EXPOSE 3000
+# Set the ownership of the binary to the non-root user
+RUN chown myuser:myuser /usr/local/bin/rust_shorten
 
-# Run the application
-CMD ["./rust_shorten"]
+# Switch to the non-root user
+USER myuser
+
+# Set the startup command to run your binary
+CMD ["rust_shorten"]

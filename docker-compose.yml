@@ -5,14 +5,11 @@ services:
       dockerfile: Dockerfile
     ports:
       - "3000:3000"
-    develop:
-      watch:
-        - action: rebuild
-          path: .
-          ignore:
-            - target
     environment:
       - PORT=3000
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
   redis:
     image: redis:alpine
     ports:
